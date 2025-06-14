@@ -12,7 +12,9 @@ let package = Package(
             name: "CoreModule",
             targets: ["CoreModule"]),
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/hafidmust/CoreModule.git", from: "1.0.0")
+    ],
     targets: [
         .target(
             name: "CoreModule",
