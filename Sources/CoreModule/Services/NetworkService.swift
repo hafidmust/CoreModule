@@ -1,4 +1,5 @@
 import Foundation
+import Alamofire
 
 enum NetworkError: Error {
     case invalidURL
@@ -19,27 +20,20 @@ class NetworkService: NetworkServiceProtocol {
     private init() {}
     
     func fetch<T: Codable>(_ type: T.Type, from endpoint: String) async throws -> T {
-        var components = URLComponents(string: baseURL + endpoint)!
-        components.queryItems = [
-            URLQueryItem(name: "key", value: apiKey)
-        ]
+        let url = baseURL + endpoint
+        let parameters: [String: Any] = ["key": apiKey]
         
-        guard let url = components.url else {
-            throw NetworkError.invalidURL
-        }
-        
-        let (data, response) = try await URLSession.shared.data(from: url)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            throw NetworkError.serverError("Invalid response")
-        }
-        
-        do {
-            let decoder = JSONDecoder()
-            return try decoder.decode(T.self, from: data)
-        } catch {
-            throw NetworkError.decodingError
+        return try await withCheckedThrowingContinuation { continuation in
+            AF.request(url, parameters: parameters)
+                .validate()
+                .responseDecodable(of: T.self) { response in
+                    switch response.result {
+                    case .success(let value):
+                        continuation.resume(returning: value)
+                    case .failure(let error):
+                        continuation.resume(throwing: NetworkError.serverError(error.localizedDescription))
+                    }
+                }
         }
     }
 } 
